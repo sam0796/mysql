@@ -1,0 +1,67 @@
+Mysql允许远程访问设置：
+	1）、use mysql;
+	2）、select host,user,password from user;
+	3）、root2使用root2从任何主机连接到mysql服务器的话。 
+		 切换到mysql中
+　　     或者如果你想允许用户myuser从ip为192
+		 mysql>GRANT ALL PRIVILEGES ON *.* TO 'root2'@'%'IDENTIFIED BY 'root2' WITH GRANT OPTION; 
+　　     或者如果你想允许用户myuser从ip为192.168.1.6的主机连接到mysql服务器，并使用mypassword作为密码 
+　　     mysql>GRANT ALL PRIVILEGES ON *.* TO 'myuser'@'192.168.1.3'IDENTIFIED BY 'mypassword' WITH GRANT OPTION; 
+　　     然后执行：
+	     mysql>FLUSH RIVILEGES;
+	4）、设置linux防火墙iptables:
+		 root #> iptables -L
+		 root #> vi /etc/sysconfig/iptables
+		         -A INPUT -p tcp -m tcp --dport 3306 -j ACCEPT
+		 root #> service iptables restart
+
+Mysql事务特性(InnoDB引擎)
+	1）、原子性
+	2）、一致性
+	3）、隔离性
+	4）、持久性
+
+Mysql架构：
+	1）、单一主从
+	2）、MHA/MMM
+	3）、mycat中间件
+	4）、keepalive + 双主(中小公司)
+	5）、mysql cluster（mysql官方集群）
+	6) 、MariaDB Galera Cluster(只能InnoDB引擎；对于账务表，订单表等对数据要求较严格不能丢失的数据)
+
+Mysql复制：
+	1）、异步复制
+	2）、全同步复制
+	3）、半同步复制
+
+Mysql sql分析：
+	1）、慢查询日志开启
+		vi /etc/my.cnf-->
+						slow_query_log=on
+						log-queries-not-using-indexes=on
+						long_query_time=0.03(s)
+						slow_query_log_file=/usr/local/mysql/log/mysqld.queries-slow.log
+
+	2）、mysql> show profiles (show profile for query 1/2...... );
+	3）、mysql> explain sql;
+
+Mysql一些锁：
+	1）、共享锁（S）：SELECT * FROM table_name WHERE ... LOCK IN SHARE MODE。
+		 排他锁（X)：SELECT * FROM table_name WHERE ... FOR UPDATE。
+用SELECT ... IN SHARE MODE获得共享锁，主要用在需要数据依存关系时来确认某行记录是否存在，并确保没有人对这个记录进行UPDATE或者DELETE操作。但是如果当前事务也需要对该记录进行更新操作，则很有可能造成死锁，对于锁定行记录后需要进行更新操作的应用，应该使用SELECT... FOR UPDATE方式获得排他锁。（InnoDB的行锁里面涉及的锁）
+	2）、MyIsAM表锁
+	3）、乐观锁：加版本号，在sql操作时先查询版本号(version = select version from table where id=*)，修改的时候带上版本号(update table set version=version+1 where version=version)（1、2属于悲观锁）
+
+Mysql表分区：(从客户端看还是同一个表)
+	1）、RANGE
+	2）、LIST
+	3）、HASH
+	4）、KEY
+	注：对于分区后查询还更慢的情况：应当选择合适的字段进行分区，如按主键ID查询，以主键ID分区；如log表按时间分区，按时间查询
+
+Mysql提高查询效率方法：
+    1）、添加索引（where条件添加索引；order By添加索引，排序最好用ID；主键ID加唯一索引，效率唯一索引 > 一般索引）
+    2）、分页查询优化：
+                    1）、count优化，直接count主键ID（添加了唯一索引），<貌似和count(*)没差>
+                    2）、列表优化：(1)先count数量；(2)查询主表ID区间；(3)再组合结果(加where条件ID IN(1,2,3......))
+                    3）、具体情况具体分析
